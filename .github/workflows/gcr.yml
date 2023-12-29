@@ -1,0 +1,39 @@
+# This is a basic workflow to help you get started with Actions
+
+name: GCR-CI
+
+# Controls when the action will run.
+on:
+  # Triggers the workflow on push or pull request events but only for the master branch
+  push:
+    branches: ["master"]
+  #pull_request:
+    #branches: [ "*" ]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      - uses: actions/checkout@v2
+        name: Check out code
+
+      - name: Authenticate
+        env:
+          GCR_SECRET: ${{ secrets.GCR_SECRET }}
+        run: |
+          echo $GCR_SECRET > ./chaincode-consulting-cc7da558796a.json
+          gcloud auth activate-service-account container-registry-sa@chaincode-consulting.iam.gserviceaccount.com --key-file=./chaincode-consulting-cc7da558796a.json
+          gcloud auth print-access-token | docker login -u oauth2accesstoken --password-stdin https://gcr.io
+          gcloud auth configure-docker asia-south2-docker.pkg.dev
+          rm ./chaincode-consulting-cc7da558796a.json
+
+      - name: Build
+        run: |
+          docker build . -t gcr.io/chaincode-consulting/buyer-app/biap-igm-node-js:${{ github.ref_name }}-${GITHUB_SHA::7}
+          docker push gcr.io/chaincode-consulting/buyer-app/biap-igm-node-js:${{ github.ref_name }}-${GITHUB_SHA::7}
